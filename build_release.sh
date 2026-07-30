@@ -22,7 +22,7 @@ for PLATFORM in "${PLATFORMS[@]}"; do
     
     echo "📦 Building for $GOOS ($GOARCH)..."
     env GOOS=$GOOS GOARCH=$GOARCH go build -o "$BUILD_DIR/$OUT_NAME" \
-        main.go auth.go api.go decrypt.go session.go
+        main.go auth.go api.go decrypt.go session.go sso.go
 done
 
 echo "✅ Compilation complete. Binaries are available in 'apps/cli/$BUILD_DIR/':"

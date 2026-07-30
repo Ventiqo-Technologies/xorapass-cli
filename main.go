@@ -1,16 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var (
@@ -47,64 +43,39 @@ func main() {
 
 	var loginCmd = &cobra.Command{
 		Use:   "login",
-		Short: "Authenticate with XoraPass server",
+		Short: "Authenticate with XoraPass server via web browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			reader := bufio.NewReader(os.Stdin)
+			port := "8500"
+			
+			// 1. Construct Web Auth URL
+			baseURL := strings.TrimRight(apiURLFlag, "/")
+			// Replace backend api port 8000 with front-end port 3000 if running locally in dev
+			webLoginURL := baseURL + "/cli-login?port=" + port
+			if strings.Contains(baseURL, ":8000") {
+				webLoginURL = strings.Replace(baseURL, ":8000", ":3000", 1) + "/cli-login?port=" + port
+			} else if strings.Contains(baseURL, "app.xorapass.com") {
+				// Live production URL mapping
+				webLoginURL = "https://app.xorapass.com/cli-login?port=" + port
+			}
 
-			fmt.Print("Email: ")
-			email, err := reader.ReadString('\n')
+			fmt.Println("🚀 Starting local callback server on port " + port + "...")
+			fmt.Println("🔗 Opening browser for secure authentication...")
+			
+			// 2. Start callback listener and launch browser
+			openBrowser(webLoginURL)
+
+			token, encKey, err := startSSOServer(port)
 			if err != nil {
-				return err
-			}
-			email = strings.TrimSpace(email)
-
-			fmt.Print("Master Password: ")
-			bytePassword, err := term.ReadPassword(int(syscall.Stdin))
-			if err != nil {
-				return err
-			}
-			fmt.Println() // Print newline after hidden input
-			password := strings.TrimSpace(string(bytePassword))
-
-			client := NewAPIClient(apiURLFlag)
-
-			// Step 1: Discover salt
-			fmt.Println("Connecting to server...")
-			discoverData, err := client.Discover(email)
-			if err != nil {
-				return fmt.Errorf("connection error: %w", err)
+				return fmt.Errorf("web login failed: %w", err)
 			}
 
-			// Step 2: Key Derivation
-			fmt.Println("Deriving master key (Argon2id)...")
-			masterKey, err := deriveMasterKey(password, discoverData.MasterSalt)
-			if err != nil {
-				return err
-			}
-
-			encKey, clientAuthHash, err := splitMasterKey(masterKey)
-			if err != nil {
-				return err
-			}
-
-			// Step 3: Login HTTP POST
-			fmt.Println("Authenticating...")
-			loginData, err := client.Login(email, clientAuthHash)
-			if err != nil {
-				return err
-			}
-
-			if loginData.MfaRequired {
-				return errors.New("multifactor authentication is enabled. CLI mfa flow is currently not implemented")
-			}
-
-			// Step 4: Cache session
-			err = saveSession(email, loginData.AccessToken, encKey)
+			// 3. Cache session (CLI extracts email from token claims or uses generic)
+			err = saveSession("web-authorized-session", token, encKey)
 			if err != nil {
 				return fmt.Errorf("failed to save session: %w", err)
 			}
 
-			fmt.Println("Success! Session stored securely.")
+			fmt.Println("\n✨ Success! Authorized CLI session stored securely.")
 			return nil
 		},
 	}

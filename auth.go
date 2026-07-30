@@ -40,3 +40,7 @@ func splitMasterKey(masterKey []byte) ([]byte, string, error) {
 
 	return encKey, clientAuthHash, nil
 }
+
+func hexDecode(str string) ([]byte, error) {
+	return hex.DecodeString(str)
+}
