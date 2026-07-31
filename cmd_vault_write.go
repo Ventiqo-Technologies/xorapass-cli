@@ -14,11 +14,20 @@ import (
 
 func newAddCmd() *cobra.Command {
 	var label string
+	var category string
+	
+	// Optional flags to bypass interactive prompts entirely (DevOps/scripting use case)
 	var username string
 	var password string
 	var url string
 	var notes string
-	var category string
+	var cardholderName string
+	var cardNumber string
+	var expiryDate string
+	var cvv string
+	var privateKey string
+	var publicKey string
+	var passphrase string
 
 	cmd := &cobra.Command{
 		Use:   "add",
@@ -29,38 +38,11 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			// Interactive prompt if flags are empty
 			reader := bufio.NewReader(os.Stdin)
-			if label == "" {
-				fmt.Print("Enter Label (required): ")
-				label, _ = reader.ReadString('\n')
-				label = strings.TrimSpace(label)
-				if label == "" {
-					return fmt.Errorf("label is required")
-				}
-			}
-			if username == "" {
-				fmt.Print("Enter Username: ")
-				username, _ = reader.ReadString('\n')
-				username = strings.TrimSpace(username)
-			}
-			if password == "" {
-				fmt.Print("Enter Password: ")
-				password, _ = reader.ReadString('\n')
-				password = strings.TrimSpace(password)
-			}
-			if url == "" {
-				fmt.Print("Enter URL: ")
-				url, _ = reader.ReadString('\n')
-				url = strings.TrimSpace(url)
-			}
-			if notes == "" {
-				fmt.Print("Enter Notes: ")
-				notes, _ = reader.ReadString('\n')
-				notes = strings.TrimSpace(notes)
-			}
+
+			// 1. Determine category
 			if category == "" {
-				fmt.Print("Enter Category (login, card, note, sshkey, other) [default: login]: ")
+				fmt.Print("Choose Category (login, card, note, sshkey, other) [default: login]: ")
 				category, _ = reader.ReadString('\n')
 				category = strings.TrimSpace(strings.ToLower(category))
 				if category == "" {
@@ -70,7 +52,6 @@ func newAddCmd() *cobra.Command {
 				category = strings.ToLower(category)
 			}
 
-			// Validate category matches one of the valid frontend categories
 			validCategories := map[string]bool{
 				"login":  true,
 				"card":   true,
@@ -83,13 +64,158 @@ func newAddCmd() *cobra.Command {
 				category = "login"
 			}
 
+			// 2. Determine Label
+			if label == "" {
+				fmt.Print("Enter Label/Name (required): ")
+				label, _ = reader.ReadString('\n')
+				label = strings.TrimSpace(label)
+				if label == "" {
+					return fmt.Errorf("label is required")
+				}
+			}
+
 			item := DecryptedVaultItem{
-				Label:        label,
-				Username:     username,
-				Value:        password,
-				URL:          url,
-				Notes:        notes,
-				Category:     category,
+				Label:    label,
+				Category: category,
+			}
+
+			// 3. Category-specific interactive prompts
+			switch category {
+			case "login":
+				if username == "" {
+					fmt.Print("Enter Username: ")
+					username, _ = reader.ReadString('\n')
+					item.Username = strings.TrimSpace(username)
+				} else {
+					item.Username = username
+				}
+				if password == "" {
+					fmt.Print("Enter Password: ")
+					password, _ = reader.ReadString('\n')
+					item.Value = strings.TrimSpace(password)
+				} else {
+					item.Value = password
+				}
+				if url == "" {
+					fmt.Print("Enter Website URL: ")
+					url, _ = reader.ReadString('\n')
+					item.URL = strings.TrimSpace(url)
+				} else {
+					item.URL = url
+				}
+				if notes == "" {
+					fmt.Print("Enter Notes: ")
+					notes, _ = reader.ReadString('\n')
+					item.Notes = strings.TrimSpace(notes)
+				} else {
+					item.Notes = notes
+				}
+
+			case "card":
+				if cardholderName == "" {
+					fmt.Print("Enter Cardholder Name: ")
+					cardholderName, _ = reader.ReadString('\n')
+					item.CardholderName = strings.TrimSpace(cardholderName)
+				} else {
+					item.CardholderName = cardholderName
+				}
+				if cardNumber == "" {
+					fmt.Print("Enter Card Number: ")
+					cardNumber, _ = reader.ReadString('\n')
+					item.CardNumber = strings.TrimSpace(cardNumber)
+				} else {
+					item.CardNumber = cardNumber
+				}
+				if expiryDate == "" {
+					fmt.Print("Enter Expiry Date (MM/YY): ")
+					expiryDate, _ = reader.ReadString('\n')
+					item.ExpiryDate = strings.TrimSpace(expiryDate)
+				} else {
+					item.ExpiryDate = expiryDate
+				}
+				if cvv == "" {
+					fmt.Print("Enter CVV: ")
+					cvv, _ = reader.ReadString('\n')
+					item.Cvv = strings.TrimSpace(cvv)
+				} else {
+					item.Cvv = cvv
+				}
+				if notes == "" {
+					fmt.Print("Enter Notes: ")
+					notes, _ = reader.ReadString('\n')
+					item.Notes = strings.TrimSpace(notes)
+				} else {
+					item.Notes = notes
+				}
+
+			case "note":
+				if notes == "" {
+					fmt.Print("Enter Secure Note Body: ")
+					notes, _ = reader.ReadString('\n')
+					item.Notes = strings.TrimSpace(notes)
+				} else {
+					item.Notes = notes
+				}
+
+			case "sshkey":
+				if privateKey == "" {
+					fmt.Print("Enter Private Key: ")
+					privateKey, _ = reader.ReadString('\n')
+					item.PrivateKey = strings.TrimSpace(privateKey)
+				} else {
+					item.PrivateKey = privateKey
+				}
+				if publicKey == "" {
+					fmt.Print("Enter Public Key: ")
+					publicKey, _ = reader.ReadString('\n')
+					item.PublicKey = strings.TrimSpace(publicKey)
+				} else {
+					item.PublicKey = publicKey
+				}
+				if passphrase == "" {
+					fmt.Print("Enter Passphrase (if any): ")
+					passphrase, _ = reader.ReadString('\n')
+					item.Passphrase = strings.TrimSpace(passphrase)
+				} else {
+					item.Passphrase = passphrase
+				}
+				if notes == "" {
+					fmt.Print("Enter Notes: ")
+					notes, _ = reader.ReadString('\n')
+					item.Notes = strings.TrimSpace(notes)
+				} else {
+					item.Notes = notes
+				}
+
+			case "other":
+				if username == "" {
+					fmt.Print("Enter Username/Key: ")
+					username, _ = reader.ReadString('\n')
+					item.Username = strings.TrimSpace(username)
+				} else {
+					item.Username = username
+				}
+				if password == "" {
+					fmt.Print("Enter Value/Secret: ")
+					password, _ = reader.ReadString('\n')
+					item.Value = strings.TrimSpace(password)
+				} else {
+					item.Value = password
+				}
+				if url == "" {
+					fmt.Print("Enter URL/Host: ")
+					url, _ = reader.ReadString('\n')
+					item.URL = strings.TrimSpace(url)
+				} else {
+					item.URL = url
+				}
+				if notes == "" {
+					fmt.Print("Enter Notes: ")
+					notes, _ = reader.ReadString('\n')
+					item.Notes = strings.TrimSpace(notes)
+				} else {
+					item.Notes = notes
+				}
 			}
 
 			// Encrypt item payload
@@ -109,17 +235,26 @@ func newAddCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Printf("Successfully added entry '%s' to vault.\n", label)
+			fmt.Printf("Successfully added entry '%s' under category '%s' to vault.\n", label, category)
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&label, "label", "", "Label of the entry")
-	cmd.Flags().StringVar(&username, "username", "", "Username")
-	cmd.Flags().StringVar(&password, "password", "", "Password")
-	cmd.Flags().StringVar(&url, "url", "", "URL")
-	cmd.Flags().StringVar(&notes, "notes", "", "Notes")
-	cmd.Flags().StringVar(&category, "category", "", "Category")
+	cmd.Flags().StringVar(&category, "category", "", "Category (login, card, note, sshkey, other)")
+	
+	// Flags to bypass prompts in scripts
+	cmd.Flags().StringVar(&username, "username", "", "Username / Key")
+	cmd.Flags().StringVar(&password, "password", "", "Password / Value / Secret")
+	cmd.Flags().StringVar(&url, "url", "", "URL / Host")
+	cmd.Flags().StringVar(&notes, "notes", "", "Notes / Secure Note Body")
+	cmd.Flags().StringVar(&cardholderName, "cardholder", "", "Cardholder Name (for category card)")
+	cmd.Flags().StringVar(&cardNumber, "cardnumber", "", "Card Number (for category card)")
+	cmd.Flags().StringVar(&expiryDate, "expiry", "", "Expiry Date (for category card)")
+	cmd.Flags().StringVar(&cvv, "cvv", "", "CVV (for category card)")
+	cmd.Flags().StringVar(&privateKey, "privatekey", "", "Private Key (for category sshkey)")
+	cmd.Flags().StringVar(&publicKey, "publickey", "", "Public Key (for category sshkey)")
+	cmd.Flags().StringVar(&passphrase, "passphrase", "", "Passphrase (for category sshkey)")
 
 	return cmd
 }
