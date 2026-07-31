@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type ConfigSession struct {
@@ -76,4 +77,44 @@ func base64Encode(data []byte) string {
 
 func base64Decode(str string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(str)
+}
+
+func extractEmailFromToken(token string) string {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return "web-authorized-session"
+	}
+	
+	// Add padding to base64 encoding if needed
+	payloadSegment := parts[1]
+	if len(payloadSegment)%4 != 0 {
+		payloadSegment += strings.Repeat("=", 4-(len(payloadSegment)%4))
+	}
+	
+	data, err := base64.URLEncoding.DecodeString(payloadSegment)
+	if err != nil {
+		// Try standard base64 decoding
+		data, err = base64.StdEncoding.DecodeString(payloadSegment)
+		if err != nil {
+			return "web-authorized-session"
+		}
+	}
+	
+	var claims struct {
+		Email string `json:"email"`
+		Sub   string `json:"sub"`
+	}
+	
+	if err := json.Unmarshal(data, &claims); err != nil {
+		return "web-authorized-session"
+	}
+	
+	if claims.Email != "" {
+		return claims.Email
+	}
+	if claims.Sub != "" && strings.Contains(claims.Sub, "@") {
+		return claims.Sub
+	}
+	
+	return "web-authorized-session"
 }

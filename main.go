@@ -69,7 +69,8 @@ func main() {
 			}
 
 			// 3. Cache session (CLI extracts email from token claims or uses generic)
-			err = saveSession("web-authorized-session", token, encKey)
+			email := extractEmailFromToken(token)
+			err = saveSession(email, token, encKey)
 			if err != nil {
 				return fmt.Errorf("failed to save session: %w", err)
 			}
