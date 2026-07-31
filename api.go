@@ -207,3 +207,35 @@ func (c *APIClient) PollDeviceToken(deviceCode string) (*DeviceTokenResponse, er
 	}
 	return &data, nil
 }
+
+type CLIWorkspace struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Role    string `json:"role"`
+	OwnerID string `json:"owner_id"`
+}
+
+func (c *APIClient) FetchWorkspaces(token string) ([]CLIWorkspace, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/workspaces", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch workspaces: status %d", resp.StatusCode)
+	}
+
+	var workspaces []CLIWorkspace
+	if err := json.NewDecoder(resp.Body).Decode(&workspaces); err != nil {
+		return nil, err
+	}
+	return workspaces, nil
+}

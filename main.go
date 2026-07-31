@@ -162,6 +162,7 @@ func main() {
 	rootCmd.AddCommand(newSearchCmd())
 	rootCmd.AddCommand(newAddCmd())
 	rootCmd.AddCommand(newDeleteCmd())
+	rootCmd.AddCommand(newWorkspaceCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
