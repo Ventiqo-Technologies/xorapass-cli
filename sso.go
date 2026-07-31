@@ -72,11 +72,11 @@ func startSSOServer(port string) (string, []byte, error) {
 		// Return a friendly HTML success page to the browser
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><title>Xora CLI - Authorized</title>
+		_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Xora CLI - Authorized</title>
 <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f1117;color:#e2e8f0;}
 .card{text-align:center;padding:2rem;border-radius:1rem;background:#1e2330;border:1px solid #2d3748;}
 h2{color:#00e5ff;margin-bottom:0.5rem;}p{color:#94a3b8;font-size:0.875rem;}</style></head>
-<body><div class="card"><h2>✅ CLI Authorized!</h2><p>You can close this window and return to your terminal.</p></div></body></html>`))
+<body><div class="card"><h2>CLI Authorized</h2><p>You can close this window and return to your terminal.</p></div></body></html>`))
 
 		// Signal success and trigger server shutdown
 		cancel()

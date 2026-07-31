@@ -58,8 +58,8 @@ func main() {
 				webLoginURL = "https://app.xorapass.com/cli-login?port=" + port
 			}
 
-			fmt.Println("🚀 Starting local callback server on port " + port + "...")
-			fmt.Println("🔗 Opening browser for secure authentication...")
+			fmt.Println("Starting local callback server on port " + port + "...")
+			fmt.Println("Opening browser for secure authentication...")
 			
 			// 2. Start callback listener and launch browser
 			openBrowser(webLoginURL)
@@ -75,7 +75,7 @@ func main() {
 				return fmt.Errorf("failed to save session: %w", err)
 			}
 
-			fmt.Println("\n✨ Success! Authorized CLI session stored securely.")
+			fmt.Println("\nSuccess! Authorized CLI session stored securely.")
 			return nil
 		},
 	}
