@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -48,6 +49,12 @@ func main() {
 		Short: "Authenticate with XoraPass server via web browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := NewAPIClient(apiURLFlag)
+
+			// Auto-detect headless/no-GUI environments (missing DISPLAY variable on non-Windows OS)
+			if !noBrowserFlag && runtime.GOOS != "windows" && os.Getenv("DISPLAY") == "" {
+				fmt.Println("No GUI display environment detected. Falling back to device code activation...")
+				noBrowserFlag = true
+			}
 
 			if noBrowserFlag {
 				// Device Code Flow
