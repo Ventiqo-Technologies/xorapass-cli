@@ -60,9 +60,27 @@ func newAddCmd() *cobra.Command {
 				notes = strings.TrimSpace(notes)
 			}
 			if category == "" {
-				fmt.Print("Enter Category: ")
+				fmt.Print("Enter Category (login, card, note, sshkey, other) [default: login]: ")
 				category, _ = reader.ReadString('\n')
-				category = strings.TrimSpace(category)
+				category = strings.TrimSpace(strings.ToLower(category))
+				if category == "" {
+					category = "login"
+				}
+			} else {
+				category = strings.ToLower(category)
+			}
+
+			// Validate category matches one of the valid frontend categories
+			validCategories := map[string]bool{
+				"login":  true,
+				"card":   true,
+				"note":   true,
+				"sshkey": true,
+				"other":  true,
+			}
+			if !validCategories[category] {
+				fmt.Printf("Warning: '%s' is not a standard category. Defaulting to 'login' for best Web UI compatibility.\n", category)
+				category = "login"
 			}
 
 			item := DecryptedVaultItem{
