@@ -39,7 +39,7 @@ func main() {
 		Short: "XoraPass CLI client",
 	}
 
-	rootCmd.PersistentFlags().StringVar(&apiURLFlag, "url", "http://localhost:8000", "XoraPass backend core-api server URL")
+	rootCmd.PersistentFlags().StringVar(&apiURLFlag, "url", "https://app.xorapass.com", "XoraPass backend core-api server URL")
 
 	var loginCmd = &cobra.Command{
 		Use:   "login",
