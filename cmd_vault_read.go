@@ -140,15 +140,31 @@ func newGetCmd() *cobra.Command {
 				return nil
 			}
 
-			// Smart defaults by category (pipe safe raw output)
+			// Smart defaults by category
 			switch matchedItem.Category {
 			case "card":
-				fmt.Println(matchedItem.CardNumber)
+				fmt.Printf("Cardholder:      %s\n", matchedItem.CardholderName)
+				fmt.Printf("Card Number:     %s\n", matchedItem.CardNumber)
+				fmt.Printf("Expiry Date:     %s\n", matchedItem.ExpiryDate)
+				fmt.Printf("CVV:             %s\n", matchedItem.Cvv)
+				if matchedItem.Notes != "" {
+					fmt.Printf("Notes:           %s\n", matchedItem.Notes)
+				}
+			case "sshkey":
+				fmt.Printf("Private Key:\n%s\n\n", matchedItem.PrivateKey)
+				if matchedItem.PublicKey != "" {
+					fmt.Printf("Public Key:  %s\n", matchedItem.PublicKey)
+				}
+				if matchedItem.Passphrase != "" {
+					fmt.Printf("Passphrase:  %s\n", matchedItem.Passphrase)
+				}
+				if matchedItem.Notes != "" {
+					fmt.Printf("Notes:       %s\n", matchedItem.Notes)
+				}
 			case "note":
 				fmt.Println(matchedItem.Notes)
-			case "sshkey":
-				fmt.Println(matchedItem.PrivateKey)
 			default:
+				// For logins or default categories, print just the password value (highly pipe-friendly)
 				fmt.Println(matchedItem.Value)
 			}
 			return nil
