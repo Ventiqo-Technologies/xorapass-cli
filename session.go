@@ -40,12 +40,24 @@ func saveSession(email, token string, encKey []byte) error {
 		EncryptionKey: base64Encode(encKey),
 	}
 
+	if err := os.Chmod(filepath.Dir(path), 0700); err != nil {
+		// Ignore error on platforms that do not support Unix-like permissions (like Windows)
+	}
+
 	data, err := json.MarshalIndent(session, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(path, data, 0600)
+	err = ioutil.WriteFile(path, data, 0600)
+	if err != nil {
+		return err
+	}
+
+	if err := os.Chmod(path, 0600); err != nil {
+		// Ignore
+	}
+	return nil
 }
 
 func loadSession() (*ConfigSession, error) {
