@@ -165,6 +165,7 @@ func main() {
 	rootCmd.AddCommand(newWorkspaceCmd())
 	rootCmd.AddCommand(newVaultMgmtCmd())
 	rootCmd.AddCommand(newAICmd())
+	rootCmd.AddCommand(newImportCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
