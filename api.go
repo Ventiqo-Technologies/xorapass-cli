@@ -108,3 +108,51 @@ func (c *APIClient) FetchVault(token string) ([]RawVaultEntry, error) {
 	}
 	return entries, nil
 }
+
+func (c *APIClient) CreateVaultEntry(token string, payload EncryptedPayload, nonce string) error {
+	reqData := map[string]interface{}{
+		"encrypted_payload": payload,
+		"nonce":             nonce,
+	}
+	reqBody, err := json.Marshal(reqData)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/vault", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("failed to create vault entry: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *APIClient) DeleteVaultEntry(token string, entryID string) error {
+	req, err := http.NewRequest("DELETE", c.BaseURL+"/api/vault/"+entryID, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to delete vault entry: status %d", resp.StatusCode)
+	}
+	return nil
+}

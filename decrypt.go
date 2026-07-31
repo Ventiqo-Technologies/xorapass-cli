@@ -1,12 +1,18 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
+
+func ioReadFull(b []byte) (int, error) {
+	return io.ReadFull(rand.Reader, b)
+}
 
 // EncryptedPayload representation of our database schema for vault entries
 type EncryptedPayload struct {
@@ -48,4 +54,37 @@ func decryptPayload(payload EncryptedPayload, nonceStr string, encKey []byte) (s
 	}
 
 	return string(opened), nil
+}
+
+// encryptPayload encrypts the plaintext using XChaCha20-Poly1305 with the key
+func encryptPayload(plaintext string, encKey []byte) (EncryptedPayload, string, error) {
+	var payload EncryptedPayload
+	aead, err := chacha20poly1305.NewX(encKey)
+	if err != nil {
+		return payload, "", fmt.Errorf("failed to initialize xchacha20poly1305: %w", err)
+	}
+
+	// Generate standard random 24-byte nonce for XChaCha20
+	nonce := make([]byte, chacha20poly1305.NonceSizeX)
+	if _, err := ioReadFull(nonce); err != nil {
+		return payload, "", fmt.Errorf("failed to generate secure nonce: %w", err)
+	}
+
+	// Seal the envelope
+	sealed := aead.Seal(nil, nonce, []byte(plaintext), nil)
+
+	// Split into ciphertext and tag (standard Poly1305 tag is trailing 16 bytes)
+	tagSize := 16
+	if len(sealed) < tagSize {
+		return payload, "", errors.New("sealed payload is too short")
+	}
+	
+	ciphertextBytes := sealed[:len(sealed)-tagSize]
+	tagBytes := sealed[len(sealed)-tagSize:]
+
+	payload.Ciphertext = base64.StdEncoding.EncodeToString(ciphertextBytes)
+	payload.Tag = base64.StdEncoding.EncodeToString(tagBytes)
+	nonceStr := base64.StdEncoding.EncodeToString(nonce)
+
+	return payload, nonceStr, nil
 }

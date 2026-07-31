@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -80,72 +79,16 @@ func main() {
 		},
 	}
 
-	var getCmd = &cobra.Command{
-		Use:   "secret [secret-name]",
-		Short: "Retrieve and decrypt a vault credential",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			secretName := args[0]
-
-			session, err := loadSession()
-			if err != nil {
-				return err
-			}
-
-			encKey, err := base64Decode(session.EncryptionKey)
-			if err != nil {
-				return fmt.Errorf("corrupt session file: %w", err)
-			}
-
-			client := NewAPIClient(apiURLFlag)
-			entries, err := client.FetchVault(session.AccessToken)
-			if err != nil {
-				return err
-			}
-
-			// Decrypt items local loop search
-			var matchedItem *DecryptedVaultItem
-
-			for _, entry := range entries {
-				decryptedJSON, err := decryptPayload(entry.EncryptedPayload, entry.Nonce, encKey)
-				if err != nil {
-					continue // Failed to decrypt this entry with user key
-				}
-
-				var item DecryptedVaultItem
-				if err := json.Unmarshal([]byte(decryptedJSON), &item); err != nil {
-					continue
-				}
-
-				if strings.EqualFold(item.Label, secretName) {
-					matchedItem = &item
-					break
-				}
-			}
-
-			if matchedItem == nil {
-				return fmt.Errorf("secret '%s' not found in vault", secretName)
-			}
-
-			if formatFlag == "json" {
-				jsonData, err := json.MarshalIndent(matchedItem, "", "  ")
-				if err != nil {
-					return err
-				}
-				fmt.Println(string(jsonData))
-			} else {
-				// Default format output: just print the password value
-				fmt.Println(matchedItem.Value)
-			}
-
-			return nil
-		},
-	}
-
-	getCmd.Flags().StringVarP(&formatFlag, "format", "f", "text", "output format (text, json)")
+	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "text", "output format (text, json, env)")
 
 	rootCmd.AddCommand(loginCmd)
-	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(newLogoutCmd())
+	rootCmd.AddCommand(newWhoamiCmd())
+	rootCmd.AddCommand(newListCmd())
+	rootCmd.AddCommand(newGetCmd())
+	rootCmd.AddCommand(newSearchCmd())
+	rootCmd.AddCommand(newAddCmd())
+	rootCmd.AddCommand(newDeleteCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
