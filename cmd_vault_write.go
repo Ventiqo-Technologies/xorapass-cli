@@ -122,10 +122,24 @@ func newAddCmd() *cobra.Command {
 				if cardNumber == "" {
 					fmt.Print("Enter Card Number: ")
 					cardNumber, _ = reader.ReadString('\n')
-					item.CardNumber = strings.TrimSpace(cardNumber)
-				} else {
-					item.CardNumber = cardNumber
+					cardNumber = strings.TrimSpace(cardNumber)
 				}
+				// Remove any existing spaces, dashes, or non-digits to sanitize
+				var cleanCard string
+				for _, char := range cardNumber {
+					if char >= '0' && char <= '9' {
+						cleanCard += string(char)
+					}
+				}
+				// Format with spaces every 4 digits (standard card representation)
+				var formattedCard strings.Builder
+				for i, r := range cleanCard {
+					if i > 0 && i%4 == 0 {
+						formattedCard.WriteRune(' ')
+					}
+					formattedCard.WriteRune(r)
+				}
+				item.CardNumber = formattedCard.String()
 				if expiryDate == "" {
 					fmt.Print("Enter Expiry Date (MM/YY): ")
 					expiryDate, _ = reader.ReadString('\n')
