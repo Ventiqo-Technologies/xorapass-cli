@@ -120,19 +120,42 @@ func newGetCmd() *cobra.Command {
 					fmt.Println(matchedItem.URL)
 				case "notes":
 					fmt.Println(matchedItem.Notes)
+				case "cardnumber":
+					fmt.Println(matchedItem.CardNumber)
+				case "cardholder":
+					fmt.Println(matchedItem.CardholderName)
+				case "expiry":
+					fmt.Println(matchedItem.ExpiryDate)
+				case "cvv":
+					fmt.Println(matchedItem.Cvv)
+				case "privatekey":
+					fmt.Println(matchedItem.PrivateKey)
+				case "publickey":
+					fmt.Println(matchedItem.PublicKey)
+				case "passphrase":
+					fmt.Println(matchedItem.Passphrase)
 				default:
 					return fmt.Errorf("unknown field '%s'", fieldFlag)
 				}
 				return nil
 			}
 
-			// By default, just print the raw secret password (pipe safe)
-			fmt.Println(matchedItem.Value)
+			// Smart defaults by category (pipe safe raw output)
+			switch matchedItem.Category {
+			case "card":
+				fmt.Println(matchedItem.CardNumber)
+			case "note":
+				fmt.Println(matchedItem.Notes)
+			case "sshkey":
+				fmt.Println(matchedItem.PrivateKey)
+			default:
+				fmt.Println(matchedItem.Value)
+			}
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&fieldFlag, "field", "", "Extract a specific field (username, password, url, notes)")
+	cmd.Flags().StringVar(&fieldFlag, "field", "", "Extract a specific field (username, password, url, notes, cardnumber, cardholder, expiry, cvv, privatekey, publickey, passphrase)")
 	return cmd
 }
 
