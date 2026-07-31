@@ -244,7 +244,7 @@ func newAddCmd() *cobra.Command {
 			}
 
 			client := NewAPIClient(apiURLFlag)
-			err = client.CreateVaultEntry(session.AccessToken, payload, nonce)
+			err = client.CreateVaultEntry(session.AccessToken, session.ActiveWorkspaceID, session.ActiveVaultID, payload, nonce)
 			if err != nil {
 				return err
 			}
@@ -299,7 +299,7 @@ func newDeleteCmd() *cobra.Command {
 			}
 
 			client := NewAPIClient(apiURLFlag)
-			err = client.DeleteVaultEntry(session.AccessToken, entryID)
+			err = client.DeleteVaultEntry(session.AccessToken, session.ActiveWorkspaceID, session.ActiveVaultID, entryID)
 			if err != nil {
 				return err
 			}

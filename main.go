@@ -163,6 +163,8 @@ func main() {
 	rootCmd.AddCommand(newAddCmd())
 	rootCmd.AddCommand(newDeleteCmd())
 	rootCmd.AddCommand(newWorkspaceCmd())
+	rootCmd.AddCommand(newVaultMgmtCmd())
+	rootCmd.AddCommand(newAICmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

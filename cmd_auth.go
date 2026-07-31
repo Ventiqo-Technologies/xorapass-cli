@@ -25,7 +25,7 @@ func decodeSession() (*ConfigSession, []byte, error) {
 // decryptAll fetches and decrypts all vault entries
 func decryptAll(session *ConfigSession, encKey []byte, apiURL string) ([]DecryptedVaultItem, []string, error) {
 	client := NewAPIClient(apiURL)
-	entries, err := client.FetchVault(session.AccessToken)
+	entries, err := client.FetchVault(session.AccessToken, session.ActiveWorkspaceID, session.ActiveVaultID)
 	if err != nil {
 		return nil, nil, err
 	}

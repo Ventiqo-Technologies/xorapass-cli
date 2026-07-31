@@ -85,8 +85,13 @@ func (c *APIClient) Login(email, clientAuthHash string) (*LoginResponse, error) 
 	return &data, nil
 }
 
-func (c *APIClient) FetchVault(token string) ([]RawVaultEntry, error) {
-	req, err := http.NewRequest("GET", c.BaseURL+"/api/vault", nil)
+func (c *APIClient) FetchVault(token, wsID, vaultID string) ([]RawVaultEntry, error) {
+	url := c.BaseURL + "/api/vault"
+	if wsID != "" && vaultID != "" {
+		url = fmt.Sprintf("%s/api/workspaces/%s/vaults/%s/items", c.BaseURL, wsID, vaultID)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +114,7 @@ func (c *APIClient) FetchVault(token string) ([]RawVaultEntry, error) {
 	return entries, nil
 }
 
-func (c *APIClient) CreateVaultEntry(token string, payload EncryptedPayload, nonce string) error {
+func (c *APIClient) CreateVaultEntry(token, wsID, vaultID string, payload EncryptedPayload, nonce string) error {
 	reqData := map[string]interface{}{
 		"encrypted_payload": payload,
 		"nonce":             nonce,
@@ -119,7 +124,12 @@ func (c *APIClient) CreateVaultEntry(token string, payload EncryptedPayload, non
 		return err
 	}
 
-	req, err := http.NewRequest("POST", c.BaseURL+"/api/vault", bytes.NewBuffer(reqBody))
+	url := c.BaseURL + "/api/vault"
+	if wsID != "" && vaultID != "" {
+		url = fmt.Sprintf("%s/api/workspaces/%s/vaults/%s/items", c.BaseURL, wsID, vaultID)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return err
 	}
@@ -138,8 +148,13 @@ func (c *APIClient) CreateVaultEntry(token string, payload EncryptedPayload, non
 	return nil
 }
 
-func (c *APIClient) DeleteVaultEntry(token string, entryID string) error {
-	req, err := http.NewRequest("DELETE", c.BaseURL+"/api/vault/"+entryID, nil)
+func (c *APIClient) DeleteVaultEntry(token, wsID, vaultID string, entryID string) error {
+	url := c.BaseURL + "/api/vault/" + entryID
+	if wsID != "" && vaultID != "" {
+		url = fmt.Sprintf("%s/api/workspaces/%s/vaults/%s/items/%s", c.BaseURL, wsID, vaultID, entryID)
+	}
+
+	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return err
 	}
@@ -238,4 +253,244 @@ func (c *APIClient) FetchWorkspaces(token string) ([]CLIWorkspace, error) {
 		return nil, err
 	}
 	return workspaces, nil
+}
+
+func (c *APIClient) CreateWorkspace(token, name, wsType string) (*CLIWorkspace, error) {
+	reqBody, _ := json.Marshal(map[string]string{
+		"name": name,
+		"type": wsType,
+	})
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/workspaces", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to create workspace: status %d", resp.StatusCode)
+	}
+
+	var ws CLIWorkspace
+	if err := json.NewDecoder(resp.Body).Decode(&ws); err != nil {
+		return nil, err
+	}
+	return &ws, nil
+}
+
+type CLIVault struct {
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func (c *APIClient) FetchWorkspaceVaults(token, wsID string) ([]CLIVault, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/workspaces/"+wsID+"/vaults", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch workspace vaults: status %d", resp.StatusCode)
+	}
+
+	var vaults []CLIVault
+	if err := json.NewDecoder(resp.Body).Decode(&vaults); err != nil {
+		return nil, err
+	}
+	return vaults, nil
+}
+
+func (c *APIClient) CreateWorkspaceVault(token, wsID, name string) (*CLIVault, error) {
+	reqBody, _ := json.Marshal(map[string]string{
+		"name": name,
+	})
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/workspaces/"+wsID+"/vaults", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to create workspace vault: status %d", resp.StatusCode)
+	}
+
+	var v CLIVault
+	if err := json.NewDecoder(resp.Body).Decode(&v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+type CLIAIRequest struct {
+	ID             string `json:"id"`
+	RiskLevel      string `json:"risk_level"`
+	RiskScore      int    `json:"risk_score"`
+	TargetDomain   string `json:"target_domain"`
+	UserAgent      string `json:"user_agent"`
+	CredentialName string `json:"credential_name"`
+	Scopes         string `json:"scopes"`
+	Status         string `json:"status"` // pending | approved | denied | expired
+}
+
+func (c *APIClient) FetchAIRequests(token string) ([]CLIAIRequest, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/ai/access-requests", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch AI requests: status %d", resp.StatusCode)
+	}
+
+	var list []CLIAIRequest
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (c *APIClient) ApproveAIRequest(token, requestID string) error {
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/ai/access-requests/"+requestID+"/approve", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to approve AI request: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *APIClient) DenyAIRequest(token, requestID string) error {
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/ai/access-requests/"+requestID+"/deny", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to deny AI request: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+type CLIBridgeToken struct {
+	ID        string    `json:"id"`
+	Label     string    `json:"label"`
+	Token     string    `json:"token,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	Revoked   bool      `json:"revoked"`
+}
+
+func (c *APIClient) FetchBridgeTokens(token string) ([]CLIBridgeToken, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/ai/bridge-tokens", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch bridge tokens: status %d", resp.StatusCode)
+	}
+
+	var tokens []CLIBridgeToken
+	if err := json.NewDecoder(resp.Body).Decode(&tokens); err != nil {
+		return nil, err
+	}
+	return tokens, nil
+}
+
+func (c *APIClient) CreateBridgeToken(token, name string) (*CLIBridgeToken, error) {
+	reqBody, _ := json.Marshal(map[string]string{
+		"label": name,
+	})
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/ai/bridge-tokens", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to create bridge token: status %d", resp.StatusCode)
+	}
+
+	var bt CLIBridgeToken
+	if err := json.NewDecoder(resp.Body).Decode(&bt); err != nil {
+		return nil, err
+	}
+	return &bt, nil
+}
+
+func (c *APIClient) RevokeBridgeToken(token, tokenID string) error {
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/ai/bridge-tokens/"+tokenID+"/revoke", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to revoke bridge token: status %d", resp.StatusCode)
+	}
+	return nil
 }

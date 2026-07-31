@@ -11,9 +11,11 @@ import (
 )
 
 type ConfigSession struct {
-	Email          string `json:"email"`
-	AccessToken    string `json:"access_token"`
-	EncryptionKey  string `json:"encryption_key"` // base64 encoded encKey
+	Email             string `json:"email"`
+	AccessToken       string `json:"access_token"`
+	EncryptionKey     string `json:"encryption_key"` // base64 encoded encKey
+	ActiveWorkspaceID string `json:"active_workspace_id,omitempty"`
+	ActiveVaultID     string `json:"active_vault_id,omitempty"`
 }
 
 func getSessionFilePath() (string, error) {
