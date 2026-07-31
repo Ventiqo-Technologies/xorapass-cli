@@ -30,8 +30,8 @@ func startSSOServer(port string) (string, []byte, error) {
 	var encKey []byte
 	var serverErr error
 
-	// Listen on port 8500 loopback
-	listener, err := net.Listen("tcp", "127.0.0.1:"+port)
+	// Listen on port 8500 on all interfaces to support container loopback routing (WSL)
+	listener, err := net.Listen("tcp", "0.0.0.0:"+port)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to bind local callback port %s: %w", port, err)
 	}
