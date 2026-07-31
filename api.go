@@ -156,3 +156,54 @@ func (c *APIClient) DeleteVaultEntry(token string, entryID string) error {
 	}
 	return nil
 }
+
+type DeviceCodeResponse struct {
+	DeviceCode string `json:"device_code"`
+	UserCode   string `json:"user_code"`
+	ExpiresIn  int    `json:"expires_in"`
+	Interval   int    `json:"interval"`
+}
+
+type DeviceTokenResponse struct {
+	Status        string `json:"status"`
+	AccessToken   string `json:"access_token,omitempty"`
+	EncryptionKey string `json:"encryption_key,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+func (c *APIClient) RequestDeviceCode() (*DeviceCodeResponse, error) {
+	resp, err := c.HTTPClient.Post(c.BaseURL+"/api/auth/device/code", "application/json", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to request device code: status %d", resp.StatusCode)
+	}
+
+	var data DeviceCodeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
+func (c *APIClient) PollDeviceToken(deviceCode string) (*DeviceTokenResponse, error) {
+	reqBody, _ := json.Marshal(map[string]string{"device_code": deviceCode})
+	resp, err := c.HTTPClient.Post(c.BaseURL+"/api/auth/device/token", "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusBadRequest {
+		return nil, fmt.Errorf("failed to poll device token: status %d", resp.StatusCode)
+	}
+
+	var data DeviceTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}

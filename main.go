@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -40,10 +41,73 @@ func main() {
 
 	rootCmd.PersistentFlags().StringVar(&apiURLFlag, "url", "https://app.xorapass.com", "XoraPass backend core-api server URL")
 
+	var noBrowserFlag bool
+
 	var loginCmd = &cobra.Command{
 		Use:   "login",
 		Short: "Authenticate with XoraPass server via web browser",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			client := NewAPIClient(apiURLFlag)
+
+			if noBrowserFlag {
+				// Device Code Flow
+				deviceResp, err := client.RequestDeviceCode()
+				if err != nil {
+					return err
+				}
+
+				baseURL := strings.TrimRight(apiURLFlag, "/")
+				activationURL := baseURL + "/activate?code=" + deviceResp.UserCode
+				if strings.Contains(baseURL, ":8000") {
+					activationURL = strings.Replace(baseURL, ":8000", ":3000", 1) + "/activate?code=" + deviceResp.UserCode
+				} else if strings.Contains(baseURL, "app.xorapass.com") {
+					activationURL = "https://app.xorapass.com/activate?code=" + deviceResp.UserCode
+				}
+
+				fmt.Println("To sign in, use a web browser to open the page:")
+				fmt.Println("    " + activationURL)
+				fmt.Println("\nAnd verify the code matches: " + deviceResp.UserCode)
+
+				// Poll loop
+				interval := time.Duration(deviceResp.Interval) * time.Second
+				if interval == 0 {
+					interval = 5 * time.Second
+				}
+
+				fmt.Println("\nWaiting for authorization...")
+				for {
+					time.Sleep(interval)
+					tokenResp, err := client.PollDeviceToken(deviceResp.DeviceCode)
+					if err != nil {
+						continue // Network glitch, retry next loop
+					}
+
+					if tokenResp.Status == "activated" {
+						encKeyBytes, err := hexDecode(tokenResp.EncryptionKey)
+						if err != nil {
+							// Fallback to base64
+							encKeyBytes, err = base64Decode(tokenResp.EncryptionKey)
+							if err != nil {
+								return fmt.Errorf("failed to decode encryption key: %w", err)
+							}
+						}
+
+						email := extractEmailFromToken(tokenResp.AccessToken)
+						err = saveSession(email, tokenResp.AccessToken, encKeyBytes)
+						if err != nil {
+							return fmt.Errorf("failed to save session: %w", err)
+						}
+
+						fmt.Println("\nSuccess! Authorized CLI session stored securely.")
+						return nil
+					}
+
+					if tokenResp.Error == "expired_token" {
+						return fmt.Errorf("the device code has expired, please run 'xora login' again")
+					}
+				}
+			}
+
 			port := "8500"
 			
 			// 1. Construct Web Auth URL
@@ -80,6 +144,7 @@ func main() {
 		},
 	}
 
+	loginCmd.Flags().BoolVar(&noBrowserFlag, "no-browser", false, "Authenticate on a remote machine without opening a local browser")
 	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "text", "output format (text, json, env)")
 
 	rootCmd.AddCommand(loginCmd)
