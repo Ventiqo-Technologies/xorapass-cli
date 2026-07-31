@@ -73,10 +73,78 @@ func startSSOServer(port string) (string, []byte, error) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Xora CLI - Authorized</title>
-<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f1117;color:#e2e8f0;}
-.card{text-align:center;padding:2rem;border-radius:1rem;background:#1e2330;border:1px solid #2d3748;}
-h2{color:#00e5ff;margin-bottom:0.5rem;}p{color:#94a3b8;font-size:0.875rem;}</style></head>
-<body><div class="card"><h2>CLI Authorized</h2><p>You can close this window and return to your terminal.</p></div></body></html>`))
+<style>
+body {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100vh;
+	margin: 0;
+	background: #0f111a;
+	color: #e2e8f0;
+}
+.card {
+	text-align: center;
+	padding: 2.5rem;
+	border-radius: 1.25rem;
+	background: #181b28;
+	border: 1px solid #282f46;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+	max-width: 400px;
+	width: 85%;
+}
+.icon-container {
+	position: relative;
+	width: 64px;
+	height: 64px;
+	margin: 0 auto 1.5rem auto;
+}
+.pulse-circle {
+	position: absolute;
+	top: 0; left: 0;
+	width: 100%; height: 100%;
+	border-radius: 50%;
+	background: rgba(0, 229, 255, 0.08);
+	animation: pulse 2s infinite ease-in-out;
+}
+.icon {
+	position: relative;
+	width: 64px;
+	height: 64px;
+	color: #00e5ff;
+	filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.3));
+}
+h2 {
+	color: #ffffff;
+	font-size: 1.5rem;
+	font-weight: 700;
+	margin: 0 0 0.75rem 0;
+}
+p {
+	color: #94a3b8;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	margin: 0;
+}
+@keyframes pulse {
+	0% { transform: scale(0.9); opacity: 0.6; }
+	50% { transform: scale(1.15); opacity: 1; }
+	100% { transform: scale(0.9); opacity: 0.6; }
+}
+</style></head>
+<body><div class="card">
+<div class="icon-container">
+	<div class="pulse-circle"></div>
+	<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+		<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+		<path d="M9.5 9.5l5 5"/>
+		<path d="M14.5 9.5l-5 5"/>
+	</svg>
+</div>
+<h2>Authentication Complete</h2>
+<p>You have logged in to the XoraPass CLI. You can close this window and return to your terminal.</p>
+</div></body></html>`))
 
 		// Signal success and trigger server shutdown
 		cancel()
