@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,12 +10,6 @@ import (
 	"runtime"
 	"time"
 )
-
-// CallbackPayload represents the incoming SSO session parameters from browser redirect
-type CallbackPayload struct {
-	Token  string `json:"token"`
-	EncKey string `json:"enc_key"`
-}
 
 // startSSOServer runs a temporary web listener on localhost to capture OAuth token
 func startSSOServer(port string) (string, []byte, error) {
@@ -43,41 +36,28 @@ func startSSOServer(port string) (string, []byte, error) {
 	}
 
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		// Enable CORS
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		if r.Method != http.MethodPost {
+		// Handle GET redirect from browser (industry standard: GitHub CLI, Azure CLI approach)
+		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		var payload CallbackPayload
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, "Bad request payload", http.StatusBadRequest)
-			serverErr = fmt.Errorf("failed to parse callback body: %w", err)
-			cancel()
-			return
-		}
+		// Extract credentials from query parameters
+		receivedToken := r.URL.Query().Get("token")
+		receivedKey := r.URL.Query().Get("enc_key")
 
-		if payload.Token == "" || payload.EncKey == "" {
+		if receivedToken == "" || receivedKey == "" {
 			http.Error(w, "Missing credentials parameters", http.StatusBadRequest)
 			serverErr = fmt.Errorf("empty sso parameters received")
 			cancel()
 			return
 		}
 
-		// Decode the encryption key
-		keyBytes, err := base64Decode(payload.EncKey)
+		// Decode the encryption key (React sends hex via bytesToHex)
+		keyBytes, err := hexDecode(receivedKey)
 		if err != nil {
-			// Fallback: try hex decoding if base64 fails (React frontend might pass hex)
-			keyBytes, err = hexDecode(payload.EncKey)
+			// Fallback: try base64 decoding
+			keyBytes, err = base64Decode(receivedKey)
 			if err != nil {
 				http.Error(w, "Invalid key encoding", http.StatusBadRequest)
 				serverErr = fmt.Errorf("failed to decode encryption key: %w", err)
@@ -86,12 +66,17 @@ func startSSOServer(port string) (string, []byte, error) {
 			}
 		}
 
-		token = payload.Token
+		token = receivedToken
 		encKey = keyBytes
 
-		w.Header().Set("Content-Type", "application/json")
+		// Return a friendly HTML success page to the browser
+		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><title>Xora CLI - Authorized</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#0f1117;color:#e2e8f0;}
+.card{text-align:center;padding:2rem;border-radius:1rem;background:#1e2330;border:1px solid #2d3748;}
+h2{color:#00e5ff;margin-bottom:0.5rem;}p{color:#94a3b8;font-size:0.875rem;}</style></head>
+<body><div class="card"><h2>✅ CLI Authorized!</h2><p>You can close this window and return to your terminal.</p></div></body></html>`))
 
 		// Signal success and trigger server shutdown
 		cancel()
