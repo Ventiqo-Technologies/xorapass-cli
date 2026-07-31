@@ -136,11 +136,7 @@ p {
 <body><div class="card">
 <div class="icon-container">
 	<div class="pulse-circle"></div>
-	<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-		<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-		<path d="M9.5 9.5l5 5"/>
-		<path d="M14.5 9.5l-5 5"/>
-	</svg>
+	<img class="icon" src="https://app.xorapass.com/xorapass_logo_mark.png" alt="XoraPass Logo" style="width:64px; height:64px; object-fit:contain;" />
 </div>
 <h2>Authentication Complete</h2>
 <p>You have logged in to the XoraPass CLI. You can close this window and return to your terminal.</p>
