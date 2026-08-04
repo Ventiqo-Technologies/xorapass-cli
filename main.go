@@ -51,8 +51,20 @@ func main() {
 			client := NewAPIClient(apiURLFlag)
 
 			// Auto-detect headless/no-GUI environments (missing DISPLAY variable on non-Windows OS)
-			if !noBrowserFlag && runtime.GOOS != "windows" && os.Getenv("DISPLAY") == "" {
-				fmt.Println("No GUI display environment detected. Falling back to device code activation...")
+			// or if we are running in WSL as the root user (who cannot launch Windows GUI browsers)
+			isRootInWSL := false
+			if runtime.GOOS == "linux" && (os.Getenv("USER") == "root" || os.Getenv("LOGNAME") == "root") {
+				if _, wsl := os.LookupEnv("WSL_DISTRO_NAME"); wsl {
+					isRootInWSL = true
+				}
+			}
+
+			if !noBrowserFlag && (runtime.GOOS != "windows" && os.Getenv("DISPLAY") == "" || isRootInWSL) {
+				if isRootInWSL {
+					fmt.Println("Running in WSL as root. Falling back to device code activation...")
+				} else {
+					fmt.Println("No GUI display environment detected. Falling back to device code activation...")
+				}
 				noBrowserFlag = true
 			}
 
