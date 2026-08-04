@@ -1,0 +1,58 @@
+name: Build and Release CLI
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger only on version tags, e.g. v1.0.0
+
+permissions:
+  contents: write # Required to create releases and upload assets
+
+jobs:
+  build-and-release:
+    name: Build & Release Binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21' # Specifying Go version used for CLI development
+
+      - name: Compile Multi-Platform Binaries
+        run: |
+          mkdir -p dist
+          
+          # Target platforms config: "OS ARCH OUT_NAME"
+          PLATFORMS=(
+            "linux amd64 xora-linux-amd64"
+            "linux arm64 xora-linux-arm64"
+            "darwin amd64 xora-darwin-amd64"
+            "darwin arm64 xora-darwin-arm64"
+            "windows amd64 xora-windows-amd64.exe"
+          )
+          
+          for PLATFORM in "${PLATFORMS[@]}"; do
+            read -r GOOS GOARCH OUT_NAME <<< "$PLATFORM"
+            echo "Building for $GOOS ($GOARCH)..."
+            env GOOS=$GOOS GOARCH=$GOARCH go build -o "dist/$OUT_NAME"
+          done
+          
+          echo "Builds complete:"
+          ls -lh dist/
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/xora-linux-amd64
+            dist/xora-linux-arm64
+            dist/xora-darwin-amd64
+            dist/xora-darwin-arm64
+            dist/xora-windows-amd64.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
