@@ -22,6 +22,7 @@ func newWorkspaceCmd() *cobra.Command {
 	cmd.AddCommand(newWorkspaceStatusCmd())
 	cmd.AddCommand(newWorkspaceUseCmd())
 	cmd.AddCommand(newWorkspaceCreateCmd())
+	cmd.AddCommand(newWorkspaceDeleteCmd())
 	return cmd
 }
 
@@ -213,4 +214,72 @@ func newWorkspaceCreateCmd() *cobra.Command {
 // Quick path resolution helper for saving configuration
 func filepathJoin(elem ...string) string {
 	return filepath.Join(elem...)
+}
+
+func newWorkspaceDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete [workspace-name-or-id]",
+		Short: "Permanently delete an organization or family workspace",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target := args[0]
+
+			session, _, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			workspaces, err := client.FetchWorkspaces(session.AccessToken)
+			if err != nil {
+				return err
+			}
+
+			var matchedID string
+			var matchedName string
+			for _, ws := range workspaces {
+				if ws.ID == target || strings.EqualFold(ws.Name, target) {
+					matchedID = ws.ID
+					matchedName = ws.Name
+					break
+				}
+			}
+
+			if matchedID == "" {
+				return fmt.Errorf("no workspace found matching '%s'", target)
+			}
+
+			// Prompt confirmation
+			fmt.Printf("WARNING: Permanently deleting workspace '%s' will erase all shared vaults, credentials, groups, and members. This action cannot be undone.\n", matchedName)
+			fmt.Print("Type 'YES' to confirm: ")
+			var confirmInput string
+			_, err = fmt.Scanln(&confirmInput)
+			if err != nil || confirmInput != "YES" {
+				fmt.Println("Workspace deletion cancelled.")
+				return nil
+			}
+
+			err = client.DeleteWorkspace(session.AccessToken, matchedID)
+			if err != nil {
+				return err
+			}
+
+			// If deleted workspace was the active context, reset local session context
+			if session.ActiveWorkspaceID == matchedID {
+				session.ActiveWorkspaceID = ""
+				session.ActiveVaultID = ""
+				rawSession, _ := json.Marshal(session)
+				homeDir, _ := os.UserHomeDir()
+				sessionPath := filepath.Join(homeDir, ".xora", "session.json")
+				err = ioutil.WriteFile(sessionPath, rawSession, 0600)
+				if err != nil {
+					return err
+				}
+			}
+
+			fmt.Printf("Successfully deleted workspace '%s' permanently.\n", matchedName)
+			return nil
+		},
+	}
+	return cmd
 }
