@@ -349,6 +349,25 @@ func (c *APIClient) CreateWorkspace(token, name, wsType string) (*CLIWorkspace, 
 	return &ws, nil
 }
 
+func (c *APIClient) DeleteWorkspace(token, wsID string) error {
+	req, err := http.NewRequest("DELETE", c.BaseURL+"/api/workspaces/"+wsID, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to delete workspace: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
 type CLIVault struct {
 	ID          string `json:"id"`
 	WorkspaceID string `json:"workspace_id"`
