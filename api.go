@@ -172,6 +172,71 @@ func (c *APIClient) DeleteVaultEntry(token, wsID, vaultID string, entryID string
 	return nil
 }
 
+func (c *APIClient) FetchTrashedEntries(token string) ([]RawVaultEntry, error) {
+	url := c.BaseURL + "/api/vault/trash"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch trash: status %d", resp.StatusCode)
+	}
+
+	var items []RawVaultEntry
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (c *APIClient) RestoreVaultEntry(token, entryID string) error {
+	url := fmt.Sprintf("%s/api/vault/%s/restore", c.BaseURL, entryID)
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to restore vault entry: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *APIClient) PermanentDeleteVaultEntry(token, entryID string) error {
+	url := fmt.Sprintf("%s/api/vault/%s/permanent", c.BaseURL, entryID)
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to purge vault entry: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
 type DeviceCodeResponse struct {
 	DeviceCode string `json:"device_code"`
 	UserCode   string `json:"user_code"`
@@ -282,6 +347,25 @@ func (c *APIClient) CreateWorkspace(token, name, wsType string) (*CLIWorkspace, 
 		return nil, err
 	}
 	return &ws, nil
+}
+
+func (c *APIClient) DeleteWorkspace(token, wsID string) error {
+	req, err := http.NewRequest("DELETE", c.BaseURL+"/api/workspaces/"+wsID, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to delete workspace: status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 type CLIVault struct {

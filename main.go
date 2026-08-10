@@ -178,6 +178,7 @@ func main() {
 	rootCmd.AddCommand(newVaultMgmtCmd())
 	rootCmd.AddCommand(newAICmd())
 	rootCmd.AddCommand(newImportCmd())
+	rootCmd.AddCommand(newTrashCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
