@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -174,7 +173,7 @@ func openBrowser(url string) {
 	switch runtime.GOOS {
 	case "linux":
 		// Check if we are running in WSL
-		if _, wsl := os.LookupEnv("WSL_DISTRO_NAME"); wsl {
+		if isWSL() {
 			err = exec.Command("powershell.exe", "-Command", "Start-Process", fmt.Sprintf(`"%s"`, url)).Start()
 		} else {
 			err = exec.Command("xdg-open", url).Start()

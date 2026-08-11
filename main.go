@@ -54,7 +54,7 @@ func main() {
 			// or if we are running in WSL as the root user (who cannot launch Windows GUI browsers)
 			isRootInWSL := false
 			if runtime.GOOS == "linux" && (os.Getenv("USER") == "root" || os.Getenv("LOGNAME") == "root") {
-				if _, wsl := os.LookupEnv("WSL_DISTRO_NAME"); wsl {
+				if isWSL() {
 					isRootInWSL = true
 				}
 			}
@@ -184,3 +184,24 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// isWSL checks if the application is running inside Windows Subsystem for Linux
+func isWSL() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	// Check environment variable
+	if _, wsl := os.LookupEnv("WSL_DISTRO_NAME"); wsl {
+		return true
+	}
+	// Fallback: check /proc/version which contains "microsoft" or "wsl" on WSL distros
+	versionBytes, err := os.ReadFile("/proc/version")
+	if err == nil {
+		versionStr := strings.ToLower(string(versionBytes))
+		if strings.Contains(versionStr, "microsoft") || strings.Contains(versionStr, "wsl") {
+			return true
+		}
+	}
+	return false
+}
+
