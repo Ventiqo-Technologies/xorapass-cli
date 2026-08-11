@@ -578,3 +578,61 @@ func (c *APIClient) RevokeBridgeToken(token, tokenID string) error {
 	}
 	return nil
 }
+
+type CLISAMLConfiguration struct {
+	Configured  bool   `json:"configured"`
+	EntityID    string `json:"entity_id"`
+	SSOURL      string `json:"sso_url"`
+	IdpMetadata string `json:"idp_metadata"`
+	Certificate string `json:"certificate"`
+}
+
+func (c *APIClient) FetchWorkspaceSAML(token, wsID string) (*CLISAMLConfiguration, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/workspaces/"+wsID+"/saml", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch SAML config: status %d", resp.StatusCode)
+	}
+
+	var config CLISAMLConfiguration
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+func (c *APIClient) UpdateWorkspaceSAML(token, wsID, entityID, ssoURL, idpMetadata, certificate string) error {
+	reqBody, _ := json.Marshal(map[string]string{
+		"entity_id":    entityID,
+		"sso_url":      ssoURL,
+		"idp_metadata": idpMetadata,
+		"certificate":  certificate,
+	})
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/workspaces/"+wsID+"/saml", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to save SAML config: status %d", resp.StatusCode)
+	}
+	return nil
+}

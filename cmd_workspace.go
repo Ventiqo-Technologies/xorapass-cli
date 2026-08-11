@@ -23,6 +23,7 @@ func newWorkspaceCmd() *cobra.Command {
 	cmd.AddCommand(newWorkspaceUseCmd())
 	cmd.AddCommand(newWorkspaceCreateCmd())
 	cmd.AddCommand(newWorkspaceDeleteCmd())
+	cmd.AddCommand(newWorkspaceSAMLCmd())
 	return cmd
 }
 
@@ -281,5 +282,113 @@ func newWorkspaceDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
+
+func newWorkspaceSAMLCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "saml",
+		Short: "Manage SAML Single Sign-On configuration",
+	}
+	cmd.AddCommand(newWorkspaceSAMLShowCmd())
+	cmd.AddCommand(newWorkspaceSAMLSetupCmd())
+	return cmd
+}
+
+func newWorkspaceSAMLShowCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show",
+		Short: "Show current SAML configuration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			session, _, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			if session.ActiveWorkspaceID == "" || session.ActiveWorkspaceID == "sandbox" {
+				return fmt.Errorf("SAML is only supported on organization/business workspaces (currently on Personal)")
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			saml, err := client.FetchWorkspaceSAML(session.AccessToken, session.ActiveWorkspaceID)
+			if err != nil {
+				return err
+			}
+
+			if !saml.Configured {
+				fmt.Println("SAML SSO is not configured for this workspace.")
+				return nil
+			}
+
+			fmt.Println("SAML SSO Configuration Status: Configured")
+			fmt.Printf("Entity ID:       %s\n", saml.EntityID)
+			fmt.Printf("SSO Sign-In URL: %s\n", saml.SSOURL)
+			fmt.Println("\nIDP Metadata XML:")
+			fmt.Println(saml.IdpMetadata)
+			fmt.Println("\nVerification Certificate:")
+			fmt.Println(saml.Certificate)
+			return nil
+		},
+	}
+	return cmd
+}
+
+func newWorkspaceSAMLSetupCmd() *cobra.Command {
+	var entityIDFlag string
+	var ssoURLFlag string
+	var metadataFileFlag string
+	var certFileFlag string
+
+	cmd := &cobra.Command{
+		Use:   "setup",
+		Short: "Set up or update SAML configuration",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			session, _, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			if session.ActiveWorkspaceID == "" || session.ActiveWorkspaceID == "sandbox" {
+				return fmt.Errorf("SAML is only supported on organization/business workspaces")
+			}
+
+			if entityIDFlag == "" || ssoURLFlag == "" || metadataFileFlag == "" || certFileFlag == "" {
+				return fmt.Errorf("all parameters (--entity-id, --sso-url, --metadata-file, --cert-file) are required")
+			}
+
+			// Read files
+			metadataBytes, err := ioutil.ReadFile(metadataFileFlag)
+			if err != nil {
+				return fmt.Errorf("failed to read metadata file: %v", err)
+			}
+
+			certBytes, err := ioutil.ReadFile(certFileFlag)
+			if err != nil {
+				return fmt.Errorf("failed to read certificate file: %v", err)
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			err = client.UpdateWorkspaceSAML(
+				session.AccessToken,
+				session.ActiveWorkspaceID,
+				entityIDFlag,
+				ssoURLFlag,
+				string(metadataBytes),
+				string(certBytes),
+			)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Successfully saved workspace SAML Single Sign-On configuration!")
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&entityIDFlag, "entity-id", "", "Service Provider Entity ID")
+	cmd.Flags().StringVar(&ssoURLFlag, "sso-url", "", "SSO Sign-In Redirect URL")
+	cmd.Flags().StringVar(&metadataFileFlag, "metadata-file", "", "Path to Identity Provider metadata XML file")
+	cmd.Flags().StringVar(&certFileFlag, "cert-file", "", "Path to public verification certificate PEM file")
+
 	return cmd
 }
