@@ -148,6 +148,113 @@ func (c *APIClient) CreateVaultEntry(token, wsID, vaultID string, payload Encryp
 	return nil
 }
 
+func (c *APIClient) UpdateVaultEntry(token, wsID, vaultID, entryID string, payload EncryptedPayload, nonce string) error {
+	reqData := map[string]interface{}{
+		"encrypted_payload": payload,
+		"nonce":             nonce,
+	}
+	reqBody, err := json.Marshal(reqData)
+	if err != nil {
+		return err
+	}
+
+	url := c.BaseURL + "/api/vault/" + entryID
+	if wsID != "" && vaultID != "" {
+		url = fmt.Sprintf("%s/api/workspaces/%s/vaults/%s/items/%s", c.BaseURL, wsID, vaultID, entryID)
+	}
+
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to update vault entry: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+type ExposureFinding struct {
+	ID          string    `json:"id"`
+	SecretType  string    `json:"secret_type"`
+	Severity    string    `json:"severity"`
+	Source      string    `json:"source"`
+	Status      string    `json:"status"`
+	Destination string    `json:"destination"`
+	Location    string    `json:"location"`
+	DetectedAt  time.Time `json:"detected_at"`
+}
+
+type ExposureSummary struct {
+	TotalFindings   int `json:"total"`
+	ActiveExposures int `json:"active"`
+	Critical        int `json:"critical"`
+	High            int `json:"high"`
+	Medium          int `json:"medium"`
+	Low             int `json:"low"`
+}
+
+type exposureListResponse struct {
+	Findings []ExposureFinding `json:"findings"`
+	Count    int               `json:"count"`
+}
+
+func (c *APIClient) FetchExposures(token string) ([]ExposureFinding, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/exposures", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch exposure findings: status %d", resp.StatusCode)
+	}
+
+	var data exposureListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+	return data.Findings, nil
+}
+
+func (c *APIClient) SummarizeExposures(token string) (*ExposureSummary, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/exposures/summary", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch exposure summary: status %d", resp.StatusCode)
+	}
+
+	var summary ExposureSummary
+	if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
+		return nil, err
+	}
+	return &summary, nil
+}
+
 func (c *APIClient) DeleteVaultEntry(token, wsID, vaultID string, entryID string) error {
 	url := c.BaseURL + "/api/vault/" + entryID
 	if wsID != "" && vaultID != "" {

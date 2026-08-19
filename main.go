@@ -173,11 +173,14 @@ func main() {
 	rootCmd.AddCommand(newGetCmd())
 	rootCmd.AddCommand(newSearchCmd())
 	rootCmd.AddCommand(newAddCmd())
+	rootCmd.AddCommand(newEditCmd())
 	rootCmd.AddCommand(newDeleteCmd())
 	rootCmd.AddCommand(newWorkspaceCmd())
 	rootCmd.AddCommand(newVaultMgmtCmd())
 	rootCmd.AddCommand(newAICmd())
 	rootCmd.AddCommand(newImportCmd())
+	rootCmd.AddCommand(newExportCmd())
+	rootCmd.AddCommand(newExposureCmd())
 	rootCmd.AddCommand(newTrashCmd())
 
 	if err := rootCmd.Execute(); err != nil {

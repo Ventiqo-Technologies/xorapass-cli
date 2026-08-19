@@ -311,3 +311,128 @@ func newDeleteCmd() *cobra.Command {
 
 	return cmd
 }
+
+// ---- EDIT / UPDATE COMMAND ----
+
+func newEditCmd() *cobra.Command {
+	var username string
+	var password string
+	var url string
+	var notes string
+	var cardholderName string
+	var cardNumber string
+	var expiryDate string
+	var cvv string
+	var privateKey string
+	var publicKey string
+	var passphrase string
+
+	cmd := &cobra.Command{
+		Use:     "edit [secret-name]",
+		Aliases: []string{"update"},
+		Short:   "Update fields of an existing vault credential",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			secretName := args[0]
+
+			session, encKey, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			items, ids, err := decryptAll(session, encKey, apiURLFlag)
+			if err != nil {
+				return err
+			}
+
+			matchedItem, entryID, err := findEntry(items, ids, secretName)
+			if err != nil {
+				return err
+			}
+
+			updated := false
+
+			if username != "" {
+				matchedItem.Username = username
+				updated = true
+			}
+			if password != "" {
+				matchedItem.Value = password
+				updated = true
+			}
+			if url != "" {
+				matchedItem.URL = url
+				updated = true
+			}
+			if notes != "" {
+				matchedItem.Notes = notes
+				updated = true
+			}
+			if cardholderName != "" {
+				matchedItem.CardholderName = cardholderName
+				updated = true
+			}
+			if cardNumber != "" {
+				matchedItem.CardNumber = formatCardNumber(cardNumber)
+				updated = true
+			}
+			if expiryDate != "" {
+				matchedItem.ExpiryDate = expiryDate
+				updated = true
+			}
+			if cvv != "" {
+				matchedItem.Cvv = cvv
+				updated = true
+			}
+			if privateKey != "" {
+				matchedItem.PrivateKey = privateKey
+				updated = true
+			}
+			if publicKey != "" {
+				matchedItem.PublicKey = publicKey
+				updated = true
+			}
+			if passphrase != "" {
+				matchedItem.Passphrase = passphrase
+				updated = true
+			}
+
+			if !updated {
+				return fmt.Errorf("no update flags provided. Use --username, --password, --url, --notes, etc.")
+			}
+
+			plaintext, err := json.Marshal(matchedItem)
+			if err != nil {
+				return err
+			}
+
+			payload, nonce, err := encryptPayload(string(plaintext), encKey)
+			if err != nil {
+				return err
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			err = client.UpdateVaultEntry(session.AccessToken, session.ActiveWorkspaceID, session.ActiveVaultID, entryID, payload, nonce)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("Successfully updated credential '%s'.\n", matchedItem.Label)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&username, "username", "", "New username / key")
+	cmd.Flags().StringVar(&password, "password", "", "New password / value / secret")
+	cmd.Flags().StringVar(&url, "url", "", "New URL / host")
+	cmd.Flags().StringVar(&notes, "notes", "", "New notes")
+	cmd.Flags().StringVar(&cardholderName, "cardholder", "", "New cardholder name")
+	cmd.Flags().StringVar(&cardNumber, "cardnumber", "", "New card number")
+	cmd.Flags().StringVar(&expiryDate, "expiry", "", "New expiry date")
+	cmd.Flags().StringVar(&cvv, "cvv", "", "New CVV")
+	cmd.Flags().StringVar(&privateKey, "privatekey", "", "New private key")
+	cmd.Flags().StringVar(&publicKey, "publickey", "", "New public key")
+	cmd.Flags().StringVar(&passphrase, "passphrase", "", "New passphrase")
+
+	return cmd
+}

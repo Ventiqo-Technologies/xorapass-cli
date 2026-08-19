@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
@@ -124,6 +125,144 @@ Examples:
 
 	cmd.Flags().StringVar(&fileFlag, "file", "", "Path to the XoraPass export file (.csv or .json)")
 	cmd.Flags().BoolVar(&dryRunFlag, "dry-run", false, "Preview what would be imported without making any changes")
+	return cmd
+}
+
+// ---- EXPORT COMMAND ----
+
+func newExportCmd() *cobra.Command {
+	var fileFlag string
+
+	cmd := &cobra.Command{
+		Use:   "export",
+		Short: "Export all vault entries to a CSV or JSON file",
+		Long: `Export all decrypted vault credentials to a .csv or .json file.
+
+Examples:
+  xora export --file my_vault_backup.csv
+  xora export --file my_vault_backup.json`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if fileFlag == "" {
+				return fmt.Errorf("--file is required. Example: xora export --file vault_backup.csv")
+			}
+
+			session, encKey, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			items, _, err := decryptAll(session, encKey, apiURLFlag)
+			if err != nil {
+				return err
+			}
+
+			if len(items) == 0 {
+				fmt.Println("No entries to export.")
+				return nil
+			}
+
+			f, err := os.Create(fileFlag)
+			if err != nil {
+				return fmt.Errorf("failed to create export file '%s': %w", fileFlag, err)
+			}
+			defer f.Close()
+
+			if strings.HasSuffix(strings.ToLower(fileFlag), ".json") {
+				data, err := json.MarshalIndent(items, "", "  ")
+				if err != nil {
+					return err
+				}
+				_, err = f.Write(data)
+				if err != nil {
+					return err
+				}
+			} else {
+				writer := csv.NewWriter(f)
+				// Write standard XoraPass CSV headers
+				header := []string{
+					"label", "category", "username", "value", "url", "notes",
+					"cardholderName", "cardNumber", "expiryDate", "cvv",
+					"privateKey", "publicKey", "passphrase", "organization",
+				}
+				if err := writer.Write(header); err != nil {
+					return err
+				}
+
+				for _, item := range items {
+					record := []string{
+						item.Label, item.Category, item.Username, item.Value, item.URL, item.Notes,
+						item.CardholderName, item.CardNumber, item.ExpiryDate, item.Cvv,
+						item.PrivateKey, item.PublicKey, item.Passphrase, item.Organization,
+					}
+					if err := writer.Write(record); err != nil {
+						return err
+					}
+				}
+				writer.Flush()
+			}
+
+			fmt.Printf("Successfully exported %d vault entries to '%s'.\n", len(items), fileFlag)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&fileFlag, "file", "", "Output filepath for export (.csv or .json)")
+	return cmd
+}
+
+// ---- EXPOSURE / AUDIT COMMAND ----
+
+func newExposureCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "exposure",
+		Aliases: []string{"exposures", "audit"},
+		Short:   "Check secret exposure risks and leaked credential findings",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			session, _, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			summary, err := client.SummarizeExposures(session.AccessToken)
+			if err != nil {
+				return err
+			}
+
+			findings, err := client.FetchExposures(session.AccessToken)
+			if err != nil {
+				return err
+			}
+
+			if formatFlag == "json" {
+				res := map[string]interface{}{
+					"summary":  summary,
+					"findings": findings,
+				}
+				data, _ := json.MarshalIndent(res, "", "  ")
+				fmt.Println(string(data))
+				return nil
+			}
+
+			fmt.Println("=== Secret Exposure Risk Summary ===")
+			fmt.Printf("Total Findings: %d | Active Risk: %d | Critical: %d | High: %d | Medium: %d | Low: %d\n\n",
+				summary.TotalFindings, summary.ActiveExposures, summary.Critical, summary.High, summary.Medium, summary.Low)
+
+			if len(findings) == 0 {
+				fmt.Println("No secret exposure findings detected. All vault credentials are safe!")
+				return nil
+			}
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+			fmt.Fprintln(w, "FINDING ID\tSECRET TYPE\tSEVERITY\tSOURCE\tSTATUS\tDESTINATION")
+			for _, f := range findings {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", f.ID, f.SecretType, f.Severity, f.Source, f.Status, f.Destination)
+			}
+			w.Flush()
+			return nil
+		},
+	}
+
 	return cmd
 }
 
