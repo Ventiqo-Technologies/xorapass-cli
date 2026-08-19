@@ -428,14 +428,13 @@ func (c *APIClient) CreateWorkspaceVault(token, wsID, name string) (*CLIVault, e
 }
 
 type CLIAIRequest struct {
-	ID             string `json:"id"`
-	RiskLevel      string `json:"risk_level"`
-	RiskScore      int    `json:"risk_score"`
-	TargetDomain   string `json:"target_domain"`
-	UserAgent      string `json:"user_agent"`
-	CredentialName string `json:"credential_name"`
-	Scopes         string `json:"scopes"`
-	Status         string `json:"status"` // pending | approved | denied | expired
+	ID              string `json:"id"`
+	RiskLevel       string `json:"risk_level"`
+	Domain          string `json:"domain"`
+	CredentialLabel string `json:"credential_label"`
+	AIToolName      string `json:"ai_tool_name"`
+	Action          string `json:"action"`
+	Status          string `json:"status"` // pending | approved | denied | expired
 }
 
 func (c *APIClient) FetchAIRequests(token string) ([]CLIAIRequest, error) {

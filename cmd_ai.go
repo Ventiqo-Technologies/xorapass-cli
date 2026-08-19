@@ -51,9 +51,28 @@ func newAIRequestsCmd() *cobra.Command {
 
 			// Render standard text table format
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-			fmt.Fprintln(w, "REQUEST ID\tCREDENTIAL\tDOMAIN\tRISK\tSTATUS")
+			fmt.Fprintln(w, "REQUEST ID\tCREDENTIAL\tTOOL/ACTION\tDOMAIN\tRISK\tSTATUS")
 			for _, r := range requests {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s (%d)\t%s\n", r.ID, r.CredentialName, r.TargetDomain, r.RiskLevel, r.RiskScore, r.Status)
+				cred := r.CredentialLabel
+				if cred == "" {
+					cred = "-"
+				}
+				toolAct := r.AIToolName
+				if r.Action != "" {
+					toolAct = fmt.Sprintf("%s (%s)", r.AIToolName, r.Action)
+				}
+				if toolAct == "" {
+					toolAct = "-"
+				}
+				domain := r.Domain
+				if domain == "" {
+					domain = "-"
+				}
+				risk := r.RiskLevel
+				if risk == "" {
+					risk = "-"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", r.ID, cred, toolAct, domain, risk, r.Status)
 			}
 			w.Flush()
 			return nil

@@ -131,8 +131,19 @@ func newWhoamiCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Email:  %s\n", session.Email)
-			fmt.Printf("Session file: %s\n", sessionFilePath())
+			fmt.Printf("Email:            %s\n", session.Email)
+			fmt.Printf("Session file:     %s\n", sessionFilePath())
+
+			ws := session.ActiveWorkspaceID
+			if ws == "" || ws == "sandbox" {
+				fmt.Println("Active Workspace: Personal (sandbox)")
+			} else {
+				fmt.Printf("Active Workspace: %s\n", ws)
+			}
+
+			if session.ActiveVaultID != "" {
+				fmt.Printf("Active Vault:     %s\n", session.ActiveVaultID)
+			}
 			return nil
 		},
 	}
