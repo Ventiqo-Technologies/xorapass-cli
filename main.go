@@ -182,8 +182,21 @@ func main() {
 	rootCmd.AddCommand(newExportCmd())
 	rootCmd.AddCommand(newExposureCmd())
 	rootCmd.AddCommand(newTrashCmd())
+	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newUpdateCLICmd())
 
-	if err := rootCmd.Execute(); err != nil {
+	err := rootCmd.Execute()
+
+	// Post-execution update check notice (skip if running version or update-cli directly)
+	if err == nil && len(os.Args) > 1 && os.Args[1] != "version" && os.Args[1] != "update-cli" && os.Args[1] != "self-update" {
+		latest := checkForUpdates()
+		if latest != "" {
+			fmt.Fprintf(os.Stderr, "\n💡 A new XoraPass CLI version is available: %s -> %s\n", CLIVersion, latest)
+			fmt.Fprintf(os.Stderr, "   Run 'xora update-cli' to upgrade.\n")
+		}
+	}
+
+	if err != nil {
 		os.Exit(1)
 	}
 }
