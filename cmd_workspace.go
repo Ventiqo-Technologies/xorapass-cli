@@ -24,6 +24,7 @@ func newWorkspaceCmd() *cobra.Command {
 	cmd.AddCommand(newWorkspaceCreateCmd())
 	cmd.AddCommand(newWorkspaceDeleteCmd())
 	cmd.AddCommand(newWorkspaceSAMLCmd())
+	cmd.AddCommand(newWorkspaceDomainCmd())
 	return cmd
 }
 
@@ -390,5 +391,117 @@ func newWorkspaceSAMLSetupCmd() *cobra.Command {
 	cmd.Flags().StringVar(&metadataFileFlag, "metadata-file", "", "Path to Identity Provider metadata XML file")
 	cmd.Flags().StringVar(&certFileFlag, "cert-file", "", "Path to public verification certificate PEM file")
 
+	return cmd
+}
+
+func newWorkspaceDomainCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "domain",
+		Short: "Manage verified corporate domains for SAML SSO",
+	}
+
+	cmd.AddCommand(newWorkspaceDomainShowCmd())
+	cmd.AddCommand(newWorkspaceDomainAddCmd())
+	cmd.AddCommand(newWorkspaceDomainRemoveCmd())
+
+	return cmd
+}
+
+func newWorkspaceDomainShowCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "show",
+		Aliases: []string{"list"},
+		Short:   "Show all registered corporate domains",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			session, _, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			if session.ActiveWorkspaceID == "" || session.ActiveWorkspaceID == "sandbox" {
+				return fmt.Errorf("SSO domains are only supported on organization/business workspaces")
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			domains, err := client.FetchWorkspaceDomains(session.AccessToken, session.ActiveWorkspaceID)
+			if err != nil {
+				return err
+			}
+
+			if len(domains) == 0 {
+				fmt.Println("No corporate domains configured for this workspace.")
+				return nil
+			}
+
+			fmt.Println("Registered Domains:")
+			for _, d := range domains {
+				status := "Pending"
+				if d.IsVerified {
+					status = "Verified"
+				}
+				fmt.Printf("- %s [%s]\n", d.Domain, status)
+			}
+			return nil
+		},
+	}
+	return cmd
+}
+
+func newWorkspaceDomainAddCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add [domain]",
+		Short: "Register a custom corporate domain",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			domain := args[0]
+			session, _, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			if session.ActiveWorkspaceID == "" || session.ActiveWorkspaceID == "sandbox" {
+				return fmt.Errorf("SSO domains are only supported on organization/business workspaces")
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			newDom, err := client.AddWorkspaceDomain(session.AccessToken, session.ActiveWorkspaceID, domain)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("Successfully added corporate domain: %s (Status: %t)\n", newDom.Domain, newDom.IsVerified)
+			return nil
+		},
+	}
+	return cmd
+}
+
+func newWorkspaceDomainRemoveCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "remove [domain]",
+		Aliases: []string{"delete"},
+		Short:   "Delete a corporate domain registration",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			domain := args[0]
+			session, _, err := decodeSession()
+			if err != nil {
+				return err
+			}
+
+			if session.ActiveWorkspaceID == "" || session.ActiveWorkspaceID == "sandbox" {
+				return fmt.Errorf("SSO domains are only supported on organization/business workspaces")
+			}
+
+			client := NewAPIClient(apiURLFlag)
+			err = client.DeleteWorkspaceDomain(session.AccessToken, session.ActiveWorkspaceID, domain)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("Successfully deleted corporate domain: %s\n", domain)
+			return nil
+		},
+	}
 	return cmd
 }

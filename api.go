@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -739,6 +740,97 @@ func (c *APIClient) UpdateWorkspaceSAML(token, wsID, entityID, ssoURL, idpMetada
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to save SAML config: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+type CLIWorkspaceDomain struct {
+	ID          uint   `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Domain      string `json:"domain"`
+	IsVerified  bool   `json:"is_verified"`
+	CreatedAt   string `json:"created_at"`
+}
+
+func (c *APIClient) FetchWorkspaceDomains(token, wsID string) ([]CLIWorkspaceDomain, error) {
+	req, err := http.NewRequest("GET", c.BaseURL+"/api/workspaces/"+wsID+"/domains", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch domains: status %d", resp.StatusCode)
+	}
+
+	var domains []CLIWorkspaceDomain
+	if err := json.NewDecoder(resp.Body).Decode(&domains); err != nil {
+		return nil, err
+	}
+	return domains, nil
+}
+
+func (c *APIClient) AddWorkspaceDomain(token, wsID, domain string) (*CLIWorkspaceDomain, error) {
+	reqBody, _ := json.Marshal(map[string]string{
+		"domain": domain,
+	})
+	req, err := http.NewRequest("POST", c.BaseURL+"/api/workspaces/"+wsID+"/domains", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errorDetail struct {
+			Detail string `json:"detail"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errorDetail); err == nil && errorDetail.Detail != "" {
+			return nil, fmt.Errorf("%s", errorDetail.Detail)
+		}
+		return nil, fmt.Errorf("failed to add domain: status %d", resp.StatusCode)
+	}
+
+	var newDomain CLIWorkspaceDomain
+	if err := json.NewDecoder(resp.Body).Decode(&newDomain); err != nil {
+		return nil, err
+	}
+	return &newDomain, nil
+}
+
+func (c *APIClient) DeleteWorkspaceDomain(token, wsID, domain string) error {
+	req, err := http.NewRequest("DELETE", c.BaseURL+"/api/workspaces/"+wsID+"/domains/"+url.QueryEscape(domain), nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errorDetail struct {
+			Detail string `json:"detail"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errorDetail); err == nil && errorDetail.Detail != "" {
+			return fmt.Errorf("%s", errorDetail.Detail)
+		}
+		return fmt.Errorf("failed to delete domain: status %d", resp.StatusCode)
 	}
 	return nil
 }
