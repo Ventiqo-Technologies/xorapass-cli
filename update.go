@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	CLIVersion    = "v1.1.0"
+	CLIVersion    = "v1.1.2"
 	GitHubRepo    = "Ventiqo-Technologies/xorapass-cli"
 	CheckInterval = 24 * time.Hour
 )
