@@ -4,7 +4,7 @@
 [![Version](https://img.shields.io/github/v/release/Ventiqo-Technologies/xorapass-cli?label=version&color=blue)](https://github.com/Ventiqo-Technologies/xorapass-cli/releases)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Official command-line client for **XoraPass** — zero-knowledge enterprise password manager and AI credential firewall.
+Official command-line client for **XoraPass** — zero-knowledge enterprise password manager.
 
 ---
 
@@ -75,10 +75,6 @@ xora search "aws"
 | **Shared Vaults** | `xora vault list` | List shared vaults in active workspace |
 | | `xora vault use <vault>`| Set active shared vault context |
 | | `xora vault create` | Create a new shared vault |
-| **AI Firewall** | `xora ai requests` | List pending AI credential access requests |
-| | `xora ai approve <id>` | Approve an AI tool access request |
-| | `xora ai deny <id>` | Deny an AI tool access request |
-| | `xora ai token` | Manage AI bridge tokens (`list`, `create`, `revoke`) |
 | **Data & Security**| `xora import --file <f>` | Bulk import from XoraPass CSV or JSON file |
 | | `xora export --file <f>` | Export vault backup to CSV or JSON file |
 | | `xora exposure` | Audit secret exposure risks and leaked key findings |

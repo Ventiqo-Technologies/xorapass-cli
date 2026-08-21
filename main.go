@@ -177,7 +177,6 @@ func main() {
 	rootCmd.AddCommand(newDeleteCmd())
 	rootCmd.AddCommand(newWorkspaceCmd())
 	rootCmd.AddCommand(newVaultMgmtCmd())
-	rootCmd.AddCommand(newAICmd())
 	rootCmd.AddCommand(newImportCmd())
 	rootCmd.AddCommand(newExportCmd())
 	rootCmd.AddCommand(newExposureCmd())
